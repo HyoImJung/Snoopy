@@ -1,3 +1,22 @@
 STAMPEDE_1 : K 캐릭터 1칸씩 이동 가능 / 맵 구현(산, 강) / 
 STAMPEDE_2 : 
-STAMPEDE_3 : 
+
+STAMPEDE_3 :
+main.cpp
+대각선 이동 — dirToDelta 람다 + 두 방향키 조합 파싱 (wd, wa, sd, sa)
+UTF-8 설정 — SetConsoleOutputCP(CP_UTF8), SetConsoleCP(CP_UTF8)
+
+GameState.cpp / GameState.h
+getMovablePositions() — 선택 유닛의 이동 가능 좌표 목록 반환 (맵 * 표시용)
+직업별 moveRange 변경 — K=1, A=3, P=2, W=4
+직업별 이동 방향 제한 — PRIEST는 십자(상하좌우)만, 나머지는 8방향
+AP=0 이동 표시 차단 — AP가 0이면 * 미표시
+유닛 배치 위치 변경 — K(x=9), A(x=10), P(x=11), W(x=12) 순서
+MSVC 호환 수정 — auto& d : dirs → 인덱스 루프, push_back({}) → make_pair()
+
+Map.cpp
+이동 가능 칸 * 표시 — getMovablePositions() 결과를 set으로 캐싱 후 렌더링
+UTF-8 박스 문자 — u8"\u250c" 등 유니코드 이스케이프로 변경
+
+변경 없는 파일
+Character.h, GameMap.h, GameState.h, GameUI.h, UI.cpp — 구조 동일 (MSVC 호환 정리만)
