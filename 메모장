@@ -1,8 +1,43 @@
 변경/추가 요소
 
-STAMPEDE_1 : K 캐릭터 1칸씩 이동 가능 / 맵 구현(산, 강) / 
+STAMPEDE_1 : 
+K 캐릭터 1칸씩 이동 가능 / 맵 구현(산, 강) / 
+---------------------------------------------------------------------------
 STAMPEDE_2 : 
+Character.h
+직업 열거형 (KNIGHT, PRIEST, ARCHER, MAGE, ENEMY_ORC)
+유닛 공통 데이터 구조체 (이름, 직업, 좌표, HP, ATK, moveRange, atkRange, isAlly, actedThisTurn)
+isAlive(), getIcon() 함수
 
+GameMap.h / Map.cpp
+15x15 타일 그리드 관리
+지형 초기화 (산 ^, 강 ~ 고정 배치)
+맵 렌더링 (박스 문자로 격자 출력, 유닛 아이콘 표시)
+
+GameState.h / GameState.cpp
+아군 4명 초기 배치 (Knight, Archer, Priest, Wizard)
+적군 스폰 (웨이브마다 Orc 6마리, 스탯 증가)
+아군 이동 (tryMoveAlly) — AP 소모, 벽/장애물 충돌 처리
+아군 공격 (tryAttackAlly) — 방향 지정, 직업별 사거리
+
+ARCHER: 사거리 1~5, 4칸 이상 시 데미지 1.5배
+MAGE: 사거리 4~7, 3x3 광역 (중심 100%, 주변 50%)
+
+PRIEST 힐 (tryHealPriest) — 인접 아군 HP +10
+적군 AI (runEnemyTurn) — 인접 아군 공격 → 타워 공격 → 타워 방향 이동
+웨이브 클리어 — 적 전멸 시 웨이브 +1, AP 전량 회복
+턴 관리 — 아군 전원 행동 완료 시 적 턴으로 전환
+
+GameUI.h / UI.cpp
+우측 정보 패널 (선택 유닛 정보, 타워 HP, AP, 아군/적군 목록)
+하단 명령어 가이드 + 마지막 행동 로그
+
+main.cpp
+게임 메인 루프 (화면 갱신 → 입력 → 처리 반복)
+입력 처리 — 유닛 선택(1~4), 이동(wasd), 공격(f+방향), 수동 턴 종료(z), 종료(q)
+맵과 UI 패널 나란히 출력
+타워 HP 0 시 게임 오버
+---------------------------------------------------------------------------
 STAMPEDE_3 :
 main.cpp
 대각선 이동 — dirToDelta 람다 + 두 방향키 조합 파싱 (wd, wa, sd, sa)
