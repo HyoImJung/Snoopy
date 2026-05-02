@@ -1,6 +1,6 @@
 변경/추가 요소 (구현 내용)
 
-STAMPEDE_1 : 
+#STAMPEDE_1 : 
 - Character.h
 직업 열거형 (KNIGHT, PRIEST, ARCHER, MAGE, ENEMY_ORC)
 유닛 공통 데이터 구조체
@@ -44,8 +44,10 @@ f + 방향키로 인접 1칸 좌표를 계산해서 전달
 유닛 선택 없음 (항상 currentAllyIndex 사용)
 z — 현재 유닛 행동 완료 처리
 WAVE_CLEAR / GAME_OVER 시 Enter 대기 후 종료
+
 ---------------------------------------------------------------------------
-STAMPEDE_2 : 
+
+#STAMPEDE_2 : 
 Character.h
 직업 열거형 (KNIGHT, PRIEST, ARCHER, MAGE, ENEMY_ORC)
 유닛 공통 데이터 구조체 (이름, 직업, 좌표, HP, ATK, moveRange, atkRange, isAlly, actedThisTurn)
@@ -79,8 +81,10 @@ main.cpp
 입력 처리 — 유닛 선택(1~4), 이동(wasd), 공격(f+방향), 수동 턴 종료(z), 종료(q)
 맵과 UI 패널 나란히 출력
 타워 HP 0 시 게임 오버
+
 ---------------------------------------------------------------------------
-STAMPEDE_3 :
+
+#STAMPEDE_3 :
 main.cpp
 대각선 이동 — dirToDelta 람다 + 두 방향키 조합 파싱 (wd, wa, sd, sa)
 UTF-8 설정 — SetConsoleOutputCP(CP_UTF8), SetConsoleCP(CP_UTF8)
