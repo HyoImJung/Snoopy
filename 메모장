@@ -1,6 +1,6 @@
 변경/추가 요소 (구현 내용)
 
-#STAMPEDE_1 : 
+#STAMPEDE_1_04_30 : 
 - Character.h
 직업 열거형 (KNIGHT, PRIEST, ARCHER, MAGE, ENEMY_ORC)
 유닛 공통 데이터 구조체
@@ -47,7 +47,7 @@ WAVE_CLEAR / GAME_OVER 시 Enter 대기 후 종료
 
 ---------------------------------------------------------------------------
 
-#STAMPEDE_2 : 
+#STAMPEDE_2_05_01 : 
 - Character.h
 직업 열거형 (KNIGHT, PRIEST, ARCHER, MAGE, ENEMY_ORC)
 유닛 공통 데이터 구조체 (이름, 직업, 좌표, HP, ATK, moveRange, atkRange, isAlly, actedThisTurn)
@@ -84,7 +84,7 @@ PRIEST 힐 (tryHealPriest) — 인접 아군 HP +10
 
 ---------------------------------------------------------------------------
 
-#STAMPEDE_3 :
+#STAMPEDE_3_05_02 :
 - main.cpp
 대각선 이동 — dirToDelta 람다 + 두 방향키 조합 파싱 (wd, wa, sd, sa)
 UTF-8 설정 — SetConsoleOutputCP(CP_UTF8), SetConsoleCP(CP_UTF8)
