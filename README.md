@@ -37,10 +37,10 @@
 
 ## 주요 기능
 '''cpp
-GameMap::GameMap(int w, int h) : width(w), height(h) {
-  grid.assign(height, std::vector<TileType>(width, TileType::EMPTY));
-  grid[height - 1][width / 2] = TileType::BASE;
-  initTerrain();
+GameMap::GameMap(int w, int h) : width(w), height(h) {  
+  grid.assign(height, std::vector<TileType>(width, TileType::EMPTY));  
+  grid[height - 1][width / 2] = TileType::BASE;  
+  initTerrain();  
 }
 '''
 
