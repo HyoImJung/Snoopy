@@ -30,7 +30,15 @@
 | q | 게임 종료 |
 
 ## 파일 구조
--
+Character.h
+    │
+    ├── GameMap.h ◄── Map.cpp
+    │       │
+    │       └── GameState.h ◄── GameState.cpp
+    │                   │
+    │                   └── GameUI.h ◄── UI.cpp
+    │                               │
+    └───────────────────────────── main.cpp
 
 ## 주요 기능
 -
