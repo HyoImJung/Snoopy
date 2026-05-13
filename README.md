@@ -36,5 +36,12 @@
 <img width="461" height="227" alt="Image" src="https://github.com/user-attachments/assets/30036002-830e-4e61-ad7c-706294033144" />
 
 ## 주요 기능
--
+'''cpp
+GameMap::GameMap(int w, int h) : width(w), height(h) {
+  grid.assign(height, std::vector<TileType>(width, TileType::EMPTY));
+  grid[height - 1][width / 2] = TileType::BASE;
+  initTerrain();
+}
+'''
+
 
