@@ -33,11 +33,11 @@
 Character.h  
     │  
     ├── GameMap.h ◄── Map.cpp  
-    │       │  
-    │       └── GameState.h ◄── GameState.cpp  
-    │                   │  
-    │                   └── GameUI.h ◄── UI.cpp  
-    │                               │  
+    │           │  
+    │           └── GameState.h ◄── GameState.cpp  
+    │                       │  
+    │                       └── GameUI.h ◄── UI.cpp  
+    │                                    │  
     └───────────────────────────── main.cpp  
 
 ## 주요 기능
