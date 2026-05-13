@@ -1,4 +1,4 @@
-
+<img width="1896" height="373" alt="Image" src="https://github.com/user-attachments/assets/14275304-8d66-4ffc-8241-44b8b3214e71" />
 # STAMPEDE
 객체지향프로그래밍 팀 프로젝트 - 팀 7 스누피  
 
