@@ -186,6 +186,9 @@ void GameState::checkWaveClear() {
     }
 
     if (!anyEnemy) {
+        for (auto e : enemies) delete e;
+        enemies.clear();
+        
         wave++;
         lastMessage = "Wave " + std::to_string(wave) + " Clear! New enemies spawn.";
         enemyMgr.spawnWave(wave, enemies);
