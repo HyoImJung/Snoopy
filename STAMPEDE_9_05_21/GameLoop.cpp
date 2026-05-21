@@ -1,0 +1,766 @@
+#include "GameLoop.h"
+#include "GameMap.h"
+#include "GameState.h"
+#include "GameUI.h"
+#include "SaveLoad.h"
+#include "Character.h"
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <set>
+#include <map>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <conio.h>
+#endif
+
+static void clearScreen() {
+#ifdef _WIN32
+    system("cls");
+#else
+    system("clear");
+#endif
+}
+
+static void wcout_line(const wchar_t* text) {
+    HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD written;
+    WriteConsoleW(h, text, (DWORD)wcslen(text), &written, NULL);
+    WriteConsoleW(h, L"\n", 1, &written, NULL);
+}
+
+// ── DEFEAT screen ─────────────────────────────────────────────
+static int g_defeatChoice = -1;
+
+static void showDefeatScreen() {
+    static const wchar_t* art[] = {
+        L"  \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557",
+        L"  \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u255a\u2550\u2550\u2588\u2588\u2554\u2550\u2550\u255d",
+        L"  \u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2551   \u2588\u2588\u2551   ",
+        L"  \u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u255d  \u2588\u2588\u2554\u2550\u2550\u255d  \u2588\u2588\u2554\u2550\u2550\u255d  \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2551   \u2588\u2588\u2551   ",
+        L"  \u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551     \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551  \u2588\u2588\u2551   \u2588\u2588\u2551   ",
+        L"  \u255a\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d     \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d  \u255a\u2550\u255d   \u255a\u2550\u255d   ",
+    };
+    const int ART_W = 49;
+    const int ART_H = 6;
+
+    static const wchar_t* menuItems[2] = {
+        L" \ucc98\uc74c\ubd80\ud130 \ub2e4\uc2dc\ud558\uae30",
+        L" \ub85c\ube44 \ud654\uba74\uc73c\ub85c \ub098\uac00\uae30"
+    };
+    static const wchar_t* confirmMsg[2] = {
+        L"\ucc98\uc74c\ubd80\ud130 \ub2e4\uc2dc \uc2dc\uc791\ud558\uc2dc\uaca0\uc2b5\ub2c8\uae4c?",
+        L"\ub85c\ube44 \ud654\uba74\uc73c\ub85c \ub098\uac00\uc2dc\uaca0\uc2b5\ub2c8\uae4c?"
+    };
+
+    HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+
+    auto wpr = [&](int x, int y, const wchar_t* text) {
+        COORD pos = { (SHORT)x, (SHORT)y };
+        SetConsoleCursorPosition(h, pos);
+        DWORD written;
+        WriteConsoleW(h, text, (DWORD)wcslen(text), &written, NULL);
+    };
+
+    auto getSize = [&](int& cols, int& rows) {
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
+        GetConsoleScreenBufferInfo(h, &csbi);
+        cols = csbi.srWindow.Right  - csbi.srWindow.Left + 1;
+        rows = csbi.srWindow.Bottom - csbi.srWindow.Top  + 1;
+    };
+
+    int selected = 0;
+
+    auto draw = [&]() {
+        system("cls");
+        int cols, rows;
+        getSize(cols, rows);
+        int artX = (cols - ART_W) / 2;
+        int artY = rows / 2 - 6;
+        if (artX < 0) artX = 0;
+        if (artY < 1) artY = 1;
+        for (int i = 0; i < ART_H; i++) {
+            // Red color (ANSI escape: \033[31m ... \033[0m)
+            DWORD written;
+            const wchar_t* red   = L"\033[31m";
+            const wchar_t* reset = L"\033[0m";
+            WriteConsoleW(h, red,   (DWORD)wcslen(red),   &written, NULL);
+            wpr(artX, artY + i, art[i]);
+            WriteConsoleW(h, reset, (DWORD)wcslen(reset), &written, NULL);
+        }
+        int menuX = cols / 2 - 12;
+        int menuY = artY + ART_H + 2;
+        for (int i = 0; i < 2; i++) {
+            wpr(menuX, menuY + i * 2, selected == i ? L"> " : L"  ");
+            DWORD written;
+            WriteConsoleW(h, menuItems[i], (DWORD)wcslen(menuItems[i]), &written, NULL);
+            wpr(menuX + 26, menuY + i * 2, selected == i ? L" <" : L"  ");
+        }
+        wpr(cols / 2 - 15, menuY + 6,
+            L"[ Enter: \ud655\uc778 ]  [ \u2191\u2193: \uc774\ub3d9 ]");
+    };
+
+    draw();
+    g_defeatChoice = -1;
+
+    while (g_defeatChoice == -1) {
+        wint_t c = _getwch();
+        if (c == 0xE0 || c == 0) {
+            wint_t arrow = _getwch();
+            if (arrow == 72 && selected > 0) { selected--; draw(); }
+            if (arrow == 80 && selected < 1)  { selected++; draw(); }
+        }
+        else if (c == 13) {
+            int cols, rows;
+            getSize(cols, rows);
+            int cx = cols / 2, cy = rows / 2;
+            // Fixed box width = 37 cols
+            // Each confirm message padded to 37 cols internally
+            static const wchar_t* popLines[2][2] = {
+                // Restart: pad to 37 cols
+                { L"\u2551  \ucc98\uc74c\ubd80\ud130 \ub2e4\uc2dc \uc2dc\uc791\ud558\uc2dc\uaca0\uc2b5\ub2c8\uae4c?    \u2551",
+                  L"\u2551  Enter: \ud655\uc778   Backspace: \ucde8\uc18c      \u2551" },
+                // Lobby: pad to 37 cols
+                { L"\u2551  \ub85c\ube44 \ud654\uba74\uc73c\ub85c \ub098\uac00\uc2dc\uaca0\uc2b5\ub2c8\uae4c?      \u2551",
+                  L"\u2551  Enter: \ud655\uc778   Backspace: \ucde8\uc18c      \u2551" }
+            };
+            wpr(cx - 19, cy - 1, L"\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557");
+            wpr(cx - 19, cy,     popLines[selected][0]);
+            wpr(cx - 19, cy + 1, popLines[selected][1]);
+            wpr(cx - 19, cy + 2, L"\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d");
+            wint_t c2 = _getwch();
+            if (c2 == 13) {
+                g_defeatChoice = selected;
+            } else {
+                draw();
+            }
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────
+
+static bool processInput(const std::string& raw, GameState& state) {
+    if (raw.empty()) return true;
+    if (raw == "q" || raw == "Q") return false;
+
+    if (state.getIsSkillMenuOpen()) {
+        if (raw == "b" || raw == "B") {
+            state.closeSkillMenu();
+            return true;
+        }
+        if (raw.length() == 1 && raw[0] >= '1' && raw[0] <= '3') {
+            state.tryUseSkill(raw[0] - '1');
+            return true;
+        }
+        state.setLastMessage("Invalid skill number! Press 1-3, or 'b' to cancel.");
+        return true;
+    }
+
+    if (raw.length() == 1 && raw[0] >= '1' && raw[0] <= '4') {
+        state.setCurrentAllyIndex(raw[0] - '1');
+        return true;
+    }
+
+    if (raw == "z" || raw == "Z") {
+        state.setLastMessage("Manual Turn End.");
+        for (auto* a : state.getAllies()) if (a) a->actedThisTurn = true;
+        state.endAllyAction();
+        return true;
+    }
+
+    if (raw == "r" || raw == "R") {
+        state.openSkillMenu();
+        return true;
+    }
+
+    int idx = state.getCurrentAllyIndex();
+    if (idx == -1) {
+        state.setLastMessage("Please select a unit first (1-4)!");
+        return true;
+    }
+
+    auto dirToDelta = [](char c, int& dx, int& dy) -> bool {
+        if (c == 'w') { dx = 0; dy = -1; return true; }
+        else if (c == 's') { dx = 0; dy = 1; return true; }
+        else if (c == 'a') { dx = -1; dy = 0; return true; }
+        else if (c == 'd') { dx = 1; dy = 0; return true; }
+        return false;
+    };
+
+    Character* selectedAlly = state.getAllies()[idx];
+    int movedCount = 0;
+    int maxRange = selectedAlly->moveRange;
+
+    for (size_t i = 0; i < raw.size(); ++i) {
+        char c = raw[i];
+
+        if (c == 'f' || c == 'F') {
+            if (i + 1 < raw.size()) {
+                char dir = raw[++i];
+                state.tryAttackAlly(idx, dir);
+            }
+            continue;
+        }
+
+        int dx = 0, dy = 0;
+        if (!dirToDelta(c, dx, dy)) continue;
+
+        if (i + 1 < raw.size()) {
+            int dx2 = 0, dy2 = 0;
+            if (dirToDelta(raw[i + 1], dx2, dy2)) {
+                if ((dx != 0 && dy2 != 0) || (dy != 0 && dx2 != 0)) {
+                    dx += dx2; dy += dy2; i++;
+                }
+            }
+        }
+
+        if (movedCount < maxRange) {
+            if (state.tryMoveAlly(idx, dx, dy)) movedCount++;
+            else break;
+        } else {
+            state.setLastMessage("Movement limit reached!");
+            break;
+        }
+    }
+    return true;
+}
+
+static bool confirmExit() {
+    HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+    auto wpr = [&](int x, int y, const wchar_t* text) {
+        COORD pos = { (SHORT)x, (SHORT)y };
+        SetConsoleCursorPosition(h, pos);
+        DWORD written;
+        WriteConsoleW(h, text, (DWORD)wcslen(text), &written, NULL);
+    };
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(h, &csbi);
+    int cols = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+    int rows = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+    int cx = cols / 2, cy = rows / 2;
+    wpr(cx - 17, cy - 1, L"\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557");
+    wpr(cx - 17, cy,     L"\u2551  \uba54\uc778 \uba54\ub274\ub85c \ub3cc\uc544\uac00\uc2dc\uaca0\uc2b5\ub2c8\uae4c?   \u2551");
+    wpr(cx - 17, cy + 1, L"\u2551  y: \ud655\uc778   \uadf8 \uc678: \ucde8\uc18c           \u2551");
+    wpr(cx - 17, cy + 2, L"\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d");
+    wpr(cx - 4, cy + 3, L">> ");
+    std::string ans;
+    std::getline(std::cin, ans);
+    return (ans == "y" || ans == "Y");
+}
+
+// ── Prologue screen ───────────────────────────────────────────
+static void showPrologue() {
+    static const int PAGE_COUNT = 6;
+    static const wchar_t* prologuePages[][5] = {
+      { L"[ \uD504\uB864\uB85C\uADF8: \uBD89\uC740 \uB2EC\uACFC \uB300\uC9C0\uC871\uC758 \uC9C4\uACA9 ]", nullptr, nullptr, nullptr, nullptr },
+      { L"\uB300\uB959\uC758 \uC911\uC2EC\uC5D0 \uC704\uCE58\uD55C \uBC88\uC601\uC758 \uB545,",
+        L"'\uC544\uC774\uC5B8\uD558\uD2B8(Ironheart) \uC655\uAD6D'.", nullptr, nullptr, nullptr },
+      { L"\uC5B4\uB290 \uB0A0 \uBC24, \uD558\uB298\uC758 \uB2EC\uC774 \uD54F\uBE5B\uC73C\uB85C \uBB3C\uB4E4\uBA70",
+        L"\uB300\uC9C0\uAC00 \uBBF8\uCE5C \uB4EF\uC774 \uC9C4\uB3D9\uD558\uAE30 \uC2DC\uC791\uD569\uB2C8\uB2E4.", nullptr, nullptr, nullptr },
+      { L"\uB2E8\uC21C\uD55C \uC9C0\uC9C4\uC778 \uC904 \uC54C\uC558\uC73C\uB098, \uADF8\uAC83\uC740 \uB300\uB959 \uC0AC\uBC29\uC758 \uAC70\uCE5C \uD669\uBB34\uC9C0\uC640 \uC2EC\uC5F0\uC5D0\uC11C",
+        L"\uAE68\uC5B4\uB09C \uC218\uB9CC \uB9C8\uB9AC\uC758 \uBAAC\uC2A4\uD130\uB4E4\uC774 \uC655\uAD6D\uC744 \uD5A5\uD574 \uC77C\uC81C\uD788 \uC9C8\uC8FC\uD558\uB294",
+        L"'\uC2A4\uD0EC\uD53C\uB4DC(Stampede)' \uD604\uC0C1\uC774\uC5C8\uC2B5\uB2C8\uB2E4.", nullptr, nullptr },
+      { L"\uBAAC\uC2A4\uD130\uB4E4\uC740 \uC774\uC131\uC744 \uC783\uC740 \uB4EF \uB208\uC774 \uB4A4\uC9D1\uD78C \uCC44,",
+        L"\uC624\uC9C1 '\uC2DC\uC6D0\uC758 \uB9C8\uC11D'\uC744 \uBE7C\uC557\uAE30 \uC704\uD574 \uB3CC\uC9C4\uD558\uACE0 \uC788\uC2B5\uB2C8\uB2E4.",
+        L"\uB9C8\uC11D\uC774 \uD30C\uAD34\uB418\uAC70\uB098 \uBE7C\uC558\uAE30\uBA74",
+        L"\uC655\uAD6D\uC740 \uBB3C\uB860 \uB300\uB959 \uC804\uCCB4\uAC00 \uC554\uD751 \uC18D\uC5D0 \uC9D3\uBC1F\uD788\uAC8C \uB418\uB294 \uC77C\uCD09\uC989\uBC1C\uC758 \uC0C1\uD669.", nullptr },
+      { L"\uC655\uAD6D\uC758 \uC131\uBCBD \uC55E\uAE4C\uC9C0 \uB4E4\uC774\uB2E5\uCE5C \uC808\uB9DD\uC758 \uC21C\uAC04,",
+        L"\uAD6D\uC655\uC758 \uC18C\uC9D1\uB839\uC5D0 \uC751\uD55C 4\uBA85\uC758 \uC804\uC124\uC801\uC778 \uC601\uC6C5\uB4E4\uC774",
+        L"\uC131\uBB38\uC744 \uC5F4\uACE0 \uBAAC\uC2A4\uD130\uB4E4\uC758 \uD3ED\uC8FC\uB97C \uB9C9\uAE30 \uC704\uD574 \uC804\uC120\uC73C\uB85C \uB098\uC12D\uB2C8\uB2E4.", nullptr, nullptr },
+    };
+
+    static const int ART_LINES = 35;
+    static const char* artPages[6][35] = {
+      { // page 0: 1_ascii_art.ans
+        "                                     (( #(,,.#( //*/.(( ,*/*.((#*.",
+        "                                     /* , ,/ ,,.. // . ,, *,. , /,",
+        "                             .. //.*.// *,.,.**.,,/*.*,,*.*,.,,(#######",
+        "                             (% **** */.,.*, ,,.. ,,.,,,*.** .*(######(",
+        "                        (/ ,,,, *, , *, ,, . ,* ..,, .. .,..*%%########%#,/*/,*",
+        "                        (/*,.*, ,**..*/***/* **,. .*.*,,, **/##########%#**(,/#",
+        "                      . ,, .    .  .    ..   .. , ..  . . /#######%####,, . ,, *",
+        "                     //.*/,,.*/.**,,,.,,../, ,*.../*.,**/.,(##%%##%####*, *..*,((,",
+        "                    .      .  . .      (( ...         .   #######(        .    .",
+        "                  *(/** ,/..,*,..////   %%%%**,,,.,* ,//*,%##%%##(../,,,, .*.*,*/*#(",
+        "                                      ...   #%#        ((########(",
+        "                %& **,/ ./*,*,*,*,*/*.,**.*/.(%###//,/(#%##%#%%#%#,*,,,,* ,/.***/./*#(",
+        "                                             #############.,,,.,,,",
+        "                (( **,/ .(**/,*,/****,,//,/*/#%#%%%%#%%#%(**,//,,**,,*.,* ,/.*,/*,*,##.",
+        "                                       .,,*/(#####     ###(/",
+        "                *( (,*/ .*,,,....,**,..(%%#%#%%/*,/,*,,(#%##,,.,*.,,.,,,*., *,../ ,,/#",
+        "                                     //(#######/       ((##########,",
+        "                   *.**  ,,*,.,,.,,,*#%#%%#####%%%**.,,*,***.,**%,(#     .., * *( *(",
+        "                                  (###############             %,   #####",
+        "                     *, /***,// *,(%####%%########***,,(//,,. ,(* .,,,.** ,..*./#",
+        "                                  (###############,* .  *       *.",
+        "                        %#,,*/(/%%%%#%%(,,*,...**/***,./,*/*./,**,,**..,, *(*#/                 (&&@",
+        "       ###                    .*###%###(  .* *, * ,* *..*.      .  .                         ,@@@@@@@@(",
+        "  /#@@@@@@@@/             .(/(###%%%#%%/,,/,,,.,,*,. .*/,**/&@@@@@@@@@@@(,#(             //@@@@@@@@@@@(",
+        "@@@@@@@@@@@@@@@@**    ((@@@@@##(#######*,, / .* ,, *  ,&@@@@@@@@@@@@@@@@@@@@@@    ..(@@@@@@@@@@@@@@@@@(",
+        "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&%@%#%#%%#%%%%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@(",
+        "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%%#######@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@/",
+        "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@(",
+        "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@(",
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+      },
+      { // page 1: 2_ascii_art.ans
+        "                                                                                    /",
+        "                                                                                    /",
+        "                                                                             %      *       (",
+        "                                                                               @         */",
+        "                                                                                 //    @.",
+        "                                                   ., %                 .////(  /       #   ///((",
+        "                                                                                 &     ,/",
+        "                                                 & (#*,/ *                     ,*        %",
+        "                                                # , ,..  .,                  (,     /      %",
+        "                                              ,.(*.%( %%.//%                        /",
+        "                                             /  *# (#,*//(  /                       /",
+        "                                              &*           ((",
+        "                                              & ##,##*####/ #",
+        "                                              #. /      .* (*",
+        "                                              & *.   ./  #  (",
+        "",
+        "                                              & ,.       (  (",
+        "                                              &*,%      ,& ((",
+        "              *#@(*@(,@(*&                    & *.       (  (                    &&,&%*%%*%&",
+        "              */@#*&%.&#*&                    & *. ,,... (  (                    %%*%&/%&*#%",
+        "                ,       @ %(.(&,,&/ /%..#(.&  & ,( ## /(.% #(  (,.(%.*@( (%, #(.( /       &",
+        "                *       @ &,.(%.,%*.*%.,#/ &  #.,, (( ** (  #  (,.(%./@/ (%, #* ( /       &",
+        "                *  .    @ .. ., ,, .... ,* #, ,  , .. ., ..,, %/ .. .. , ,. ,. .. #  .,   @",
+        "               .* @@/   @ &%,&%,(/(#,%#.#& % (%.&% (#.((#(/%%  (/(###*@&.(#*#/%(/ / &%#   @",
+        "                .       .                                     .                   .       ,",
+        "                *       @ (@ #% /**,./& (/ & ((,  /@@@@@   ##  /.,*,#.## /(.**,,* (       &",
+        "                *       @                  ((     (@@@@@      &,                  #       &",
+        "               .*       @                  % (((,.(@@@@@ ( &%. /                  (       @",
+        "          //((/./.(#*(( @ ##*##*((((/##,#( &,.. ,*/@@@@@ % ,* ,/*#(##/##,(#,##(#( #.(#*(( @ ((,*.",
+        "        #                                               #.                                       ,.",
+        "       &                                                                                          .,",
+        " * ,                                                         ,                                         % %",
+        "*                                                                                                         &",
+        nullptr,
+        nullptr,
+      },
+      { // page 2: 3_ascii_art.ans
+        "                                             ..&%%%%%%.",
+        "                                        #%*       *@",
+        "                                     //         (.           .#####,",
+        "                                    &          &((/**,,..,,,*/#((@",
+        "                              &%& (*         .#,,,,...     ...,...,.#",
+        "                      ##////(////&           @/*//*,,,, ..,.,****/&*     @@&#**((&",
+        "                #(.*,.,//*(###(##&           @###%#/***..,***(#((###(/*,..****/(%*",
+        "                  /#           . &           @....           .......           &",
+        "             .,*(/*.. .,,,*///*/*&            %****,.,.  .,,,*/**///,,,,. ..,,@",
+        "              ##/,**, ,***/##((((%,             &##/***..,***(((((#(***,..,*&",
+        "                .//,. .....,,,,,,.*/             ,(....  ....,,,,,,,....  .....,,,,,,..*%",
+        "                 ,/,. ..,,,***,**,.*(               ,#,. ....,,,*,**,.,.  ....,*,,***&*",
+        "              &#,,,,. ,***/((//((/,,,,*                       #(((#(***,..,,,,/((/&*",
+        "         #&/****,.,.. .,,,**/***/*.,,. ./#                .(,*/**///,,,,...,,,,//",
+        "    */,..,*,,,,,....  .....,,,,,,,....  ....,*&&&&&%%%/  ....,,,,,,, /,.  ....%@",
+        "       /@/((////,,,,. .,,,*///*//*,,,. .,,,*///*//*,,,. ..,,,*//*/%   .#...",
+        "            ***%/.,,, .***/(#((((/***, .,,**/((/(#/***,..,***/(/&       ,",
+        "                    .#&*,..,,,,,,,...   ....,,,,,,,...   ...../*",
+        "                            .%%###/,,.  ....,,,,,*,....*/  ..&",
+        "                                   ./, .**//#%#(#%#/&*      &       .",
+        "                                             @@@@@.        *",
+        "                                ..                      ..",
+        "           &&/&&               .                     &&.          /         ,",
+        "         #                 #                       &",
+        "/#(##,##.        (      ## &                   *((%            /",
+        "                      @                       (",
+        "              #    ** #         /         //,/                    &       %",
+        "                                                   *",
+        "         @       %                 @                    @",
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+      },
+      { // page 3: 4_ascii_art.ans
+        "                                #* *                            ,                     &@%@#",
+        "                     ,            . ,.                          #@@@                      *%       @          .& %",
+        "                     (                &           %*   ./%%#.%%(#,         @            .#%@ &      */ #(, ,%( %@",
+        "     %#(              /           ..                 %&           &@        ,@&@@&&%%%@&//   */     .,./..* **,#%@/",
+        "                      / &       ( &                                          &@%#&@&*&&@&,          %&*%@((#@&%   **",
+        "           &%                                             .....           (@@@,     ./#@@@@@        &  ((   &( *#",
+        "             @%#                // (                           %,/       #.                  &                       ** @#   %. &",
+        "                . *&@&%&@@(&@@&%@@#@&,                  @         #.    &(              /&,.,  /                      .# . ., .@",
+        "        ..        .&&@@&@@&@@@@@*          *.                               / #                 &                       . @, & /",
+        "     @@%@@         *@#(.   (@%%&        @&(                (               % %             %            /              &,  .    &",
+        "                     &&  @&&,                   .                             * (    .,.*                                 @.",
+        "           .@      @  .,@&.               ./ #        @  *     /#/ %         . *.      ., ..        @.#*/    %   @  &##%&     ./",
+        "             *@ #%. &                                           .% @@&       .          ,.     .#((    .   ,.",
+        "         @     ,   @* &         &       &. &*     &%            *@(@(&&                         @ #,%%@           **   %%",
+        "//*(//(/&             (        (,        .,         *&%,&@((#@#*##*(*/&                        %      #.         %       @",
+        "                  (       //    &(,@&##*@@&          %&(#&@%%%#&%&%                  (%             /  (,       ..          *#      .%",
+        "                 %        %,  (.%%.(&&( ,,        @@@@& .,%% //((,@@@@@              @%,           ,. @*       *             @%@% %/%@",
+        "  &  ./     (   .,         *&              %     %   *&         .@&@            @@@&&@@@&&&%                      **%(%%%%//,#%%#(%@,",
+        " & *,        *.  .(                   #.%*(         #*              @       .%#/@&%%@@@%@&@@ #%               ,%&@@(@(,@%&( %%(#&",
+        "                                 &&(,                     .(%.&&&%(@&&&*@@&@&%#%(&&&#%&             *#*@&/&%@&/&@&&#&&/&@@&...",
+        "         /    *                              @         .(%%* (/,&# ,(%( (&(,,&%./%///.           .#&*, @%,.,#/ *./, #& */@&*,",
+        "          *& %                       %,   ,((     &#(@&./    #(/%#/&#&/*%&%//&&*&&%&,          %&*@@     (/(@@./%%(.%@    */@@",
+        "        (    (     &              ,                          &%*&@%@    @@&%#@@/&@@&&@@%##               /@&@@(@@&@%@@      &@*@@",
+        "     *%.     ,    &  (%%###  /   #                        %@&&&.@@             //*      &@               ,##%%%     &(#&,       &",
+        "            ../(           # /@  &                 .      %@    #@               @,    ,               ##*,/%.       %(,%%",
+        "           ., ..             . %  #      (%#,%% &         #*     .(*              #(.                  &&            &@/&/",
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+      },
+      { // page 4: 5_ascii_art.ans
+        "                           *",
+        "                           *",
+        "                          .. .",
+        "                          .. .",
+        "                /         ,. .        *",
+        "    /            ,                   ,            *",
+        "                        ,. @..*                 .",
+        "        . .*%         &.   @ *( &         (**,.",
+        "          ,/##/     @      #./*,%,&,    .##%%*",
+        "           /,    /,        / ,*,//,.,%    .(,",
+        "               &         .,  ,..,***,, &",
+        "      @/      % (..   *    ,,, *****(,/*%      (%",
+        "              @     **           ,*%@@@&&",
+        "              @     ,*   .     .,,,(%&&%&",
+        "....*((*,     & .   ,/.....  ,*((,,,#&&(&     //***,. .",
+        ".. .*//*.     @...  *#/*,, /##(&%*/#%&&#&     ***,,,. ..",
+        "              #     .*.  .,,,,,****%&&&%&",
+        "              %     .*...,,.,,,,.,,*%&&#%",
+        "      //      &  .*...% *,,,**, # ..*.##@      (,",
+        "  (            /#*#(%#@ (,(( (& &**(*///            /",
+        "           (     &./*////, @.*%&&&%&,&     /",
+        "            ..     %,(%##/,&./##/%*,     ....",
+        "                     *(,(( &,&#(@",
+        "      .,                @ ,&,.&              .. .",
+        "                          *#,",
+        "                ,       ,     *       .",
+        "",
+        "",
+        "                           *",
+        "                           /",
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+      },
+      { // page 5: 6_ascii_art.ans
+        "    (,                                            #&&&",
+        "  /   #                                          @//*(./,",
+        "  # . #                           %**,#.        @.,,,&                                   .@",
+        "  ( . %                          %***,,#       #..,***@                                  ,%@.",
+        "  ( , %        #* /,,,#           /*,.#       &*,.,//(#&                               #    ,@,",
+        "  ( . %       ./.  . .*@           (,&   #/**,***,/**//,,,,#%          .    %/**((/**(        @@",
+        "  ( . %       .*..@@*.(@           * @       & ,,&  (/  &            @%@@.  (**(#(#//%         @(",
+        "  ( , %       .*. @@,,*&           *.&       @ .*,%%*., &            &,@ %%(%/#   ( *%          &@",
+        "  ( . %  .(.,.*&*(####**,,../      *.&     *&#*        .%&(            @@@**/*/(&.(%.           &@",
+        "  # * % ,, ...&    .*,,//,,..@     ../    %/(/#.       #*,.#        /(/*,*,(  *&@@@@@@@@@@@@@@@@@@@@@@@       /%%%%%(",
+        "%%&%&%&%%*///@     ,.,.,/(//%     #  ,/%*,**/*,/      #,,,..#      .#***,**/ ../(**/*//***/*/*,@  *         (         /",
+        "   %((/(*%*/*@     ...,,/#///#     .,#&@.,,,,,...(  (,*,,,.../             %#/***%**,           &&        %../&&  .&&, .%",
+        "  */*(%//**(.@.    *,..,( &**#.    *,&@@/(//,(**,.,//(#*(#..,/              @*****/%#           &@        ,.&* %   / *%,*",
+        "   ,./.       &&&&&&&&&%* ///(.    *.&#@,,# .*... .,.,*,*(..,.(             ,&&&&&&%%*         (@.      ,(%#%  ,@@&.  #&&(.",
+        "    ,.       &.,,.,*,..*/,*/*#.    * &*%/#  %*,,..,***/,,&..,,*#.          #*********@(       *&      @*(//*&,       ,%*//*/%",
+        "            (,*.,%@@@/*/,/(*/#.    *.&      &/,,,.,**/(**&,&&&&,          ///(/***////. #    @@      //,,(%*(#,     .(((%(**/(",
+        "           #,,,**@@@@@****/        * &     %,,.,...,,,*,,,&% *&          (/*,/***,,,*,*  . #%       ,#(//(@/*//&   &/*(/@#//(#.",
+        "            ,%//*/@ &((//@         * &     &//,,,.*//(#/*/@               .&*/**/@***,&   @.        *#/***%/,*/(((((**(/& //*/,",
+        "            . ,*/%. ,(((**         * @    %,**... .,,**,,,.#             ,#**,,%  &,,,*&            ,*  .,@@@@@@***@@@@#&,.  .,",
+        "            /,  *%  *,   %         *.&    &***,,...,,*/,,,.%               &/,/(  (/*/#              *(*.#(#***/(*///#(//%//#(",
+        "             @**(,   %,*,%         *.&    &/(/,,,.,**/(***.#.              @((@    %//&                  .%%/(##(/(((##(%",
+        "             @/*(*   %,*,%         * &   /,,,,.....,,**,,. ./,             &((&    %/(&                   &&&&&%   #@@&@&",
+        "          (/...,/*   %*.. .(.      * &  .(////,,,.,**/(**, .(,          ,//**(&    #//(//%              @///**/&   %*///((@",
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+      },
+    };
+
+    const int BOX_W = 68;
+    const int BOX_H = 6;
+
+    HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+    auto wpr = [&](int x, int y, const wchar_t* text) {
+        COORD pos = { (SHORT)x, (SHORT)y };
+        SetConsoleCursorPosition(h, pos);
+        DWORD written;
+        WriteConsoleW(h, text, (DWORD)wcslen(text), &written, NULL);
+    };
+    auto cpr = [&](int x, int y, const char* text) {
+        COORD pos = { (SHORT)x, (SHORT)y };
+        SetConsoleCursorPosition(h, pos);
+        DWORD written;
+        WriteConsoleA(h, text, (DWORD)strlen(text), &written, NULL);
+    };
+    auto getSize = [&](int& cols, int& rows) {
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
+        GetConsoleScreenBufferInfo(h, &csbi);
+        cols = csbi.srWindow.Right  - csbi.srWindow.Left + 1;
+        rows = csbi.srWindow.Bottom - csbi.srWindow.Top  + 1;
+    };
+
+    auto drawBox = [&](int page) {
+        system("cls");
+        int cols, rows;
+        getSize(cols, rows);
+
+        int boxX = (cols - BOX_W - 2) / 2;
+        int boxY = rows - BOX_H - 4;
+        if (boxX < 0) boxX = 0;
+        if (boxY < 3) boxY = 3;
+
+        // Draw ASCII art centered above box
+        int actualLines = 0;
+        int maxArtW = 0;
+        for (int i = 0; i < ART_LINES; i++) {
+            if (artPages[page][i]) {
+                actualLines++;
+                int w = (int)strlen(artPages[page][i]);
+                if (w > maxArtW) maxArtW = w;
+            }
+        }
+        int spaceAbove = boxY - 1;
+        int artStartY = (spaceAbove - actualLines) / 2;
+        if (artStartY < 1) artStartY = 1;
+
+        // Fix X based on max width so all lines align consistently
+        int artBaseX = (cols - maxArtW) / 2;
+        if (artBaseX < 0) artBaseX = 0;
+
+        for (int i = 0; i < ART_LINES; i++) {
+            const char* ln = artPages[page][i];
+            if (!ln) continue;
+            cpr(artBaseX, artStartY + i, ln);
+        }
+
+        // Box top border
+        std::wstring top = L"\u250C";
+        for (int i = 0; i < BOX_W; i++) top += L"\u2500";
+        top += L"\u2510";
+        wpr(boxX, boxY, top.c_str());
+
+        // Text rows
+        for (int i = 0; i < BOX_H; i++) {
+            wpr(boxX, boxY + 1 + i, L"\u2502");
+            const wchar_t* ln = (i < 5) ? prologuePages[page][i] : nullptr;
+            if (ln) {
+                COORD pos = { (SHORT)(boxX + 2), (SHORT)(boxY + 1 + i) };
+                SetConsoleCursorPosition(h, pos);
+                DWORD written;
+                WriteConsoleW(h, ln, (DWORD)wcslen(ln), &written, NULL);
+            }
+            COORD rpos = { (SHORT)(boxX + BOX_W + 1), (SHORT)(boxY + 1 + i) };
+            SetConsoleCursorPosition(h, rpos);
+            DWORD written;
+            WriteConsoleW(h, L"\u2502", 1, &written, NULL);
+        }
+
+        // Box bottom border
+        std::wstring bot = L"\u2514";
+        for (int i = 0; i < BOX_W; i++) bot += L"\u2500";
+        bot += L"\u2518";
+        wpr(boxX, boxY + BOX_H + 1, bot.c_str());
+
+        // Hint
+        int hintY = boxY + BOX_H + 2;
+        const wchar_t* hint = (page < PAGE_COUNT - 1)
+            ? L"[ Enter: \uB2E4\uC74C ]   [ Backspace: \uAC74\uB108\uB6F0\uAE30 ]"
+            : L"[ Enter: \uAC8C\uC784 \uC2DC\uC791 ]   [ Backspace: \uAC74\uB108\uB6F0\uAE30 ]";
+        int hintOffset = (page < PAGE_COUNT - 1) ? 20 : 23;
+        wpr(cols / 2 - hintOffset, hintY, hint);
+    };
+
+    int page = 0;
+    drawBox(page);
+
+    while (true) {
+        wint_t c = _getwch();
+        if (c == 13) {
+            if (page < PAGE_COUNT - 1) { page++; drawBox(page); }
+            else break;
+        } else if (c == 8) {
+            break;
+        }
+    }
+    system("cls");
+}
+
+
+static void gameLoop(GameMap& map, GameState& state, int saveSlot) {
+    GameUI ui;
+
+    while (true) {
+        clearScreen();
+
+        std::vector<std::string> mapLines = map.renderLines(state);
+        std::vector<std::string> uiLines  = ui.renderInterfaceLines(state);
+
+        size_t totalRows = std::max<size_t>(mapLines.size(), uiLines.size());
+
+        // Build a set of hit positions for quick lookup
+        // Damage effect overlay
+        {
+            const auto effects = state.getHitEffects();
+            state.clearHitEffects();
+
+            // Merge effects at same (x,y): sum damage
+            std::map<std::pair<int,int>, int> merged;
+            for (const auto& ef : effects)
+                merged[{ef.x, ef.y}] += ef.dmg;
+
+            // Track modified byte ranges per line to avoid overlap
+            // key=lineIdx, value=set of cellStart offsets already written
+            std::map<int, std::set<int>> modifiedCells;
+
+            for (const auto& kv : merged) {
+                int ex = kv.first.first;
+                int ey = kv.first.second;
+                int dmg = kv.second;
+
+                int lineIdx = 2 + ey * 2;
+                if (lineIdx < 0 || lineIdx >= (int)mapLines.size()) continue;
+
+                std::string& line = mapLines[lineIdx];
+                int cellStart = 6 + ex * 6;
+                if (cellStart + 3 > (int)line.size()) continue;
+                if (modifiedCells[lineIdx].count(cellStart)) continue;
+
+                std::string tag = "-" + std::to_string(dmg);
+                std::string colored = "\033[41;97m";
+                if ((int)tag.size() >= 3)
+                    colored += tag.substr(0, 3);
+                else
+                    colored += tag + std::string(3 - tag.size(), ' ');
+                colored += "\033[0m";
+
+                // Adjust cellStart for previously inserted ANSI codes in same line
+                // Each previous insertion adds (colored.size() - 3) extra bytes
+                int extraBytes = 0;
+                for (int prev : modifiedCells[lineIdx])
+                    if (prev < cellStart) extraBytes += (int)colored.size() - 3;
+
+                int adjustedStart = cellStart + extraBytes;
+                if (adjustedStart + 3 > (int)line.size()) continue;
+
+                line = line.substr(0, adjustedStart) + colored + line.substr(adjustedStart + 3);
+                modifiedCells[lineIdx].insert(cellStart);
+            }
+
+            for (size_t i = 0; i < totalRows; ++i) {
+                if (i < mapLines.size()) std::cout << mapLines[i];
+                else if (!mapLines.empty()) std::cout << std::string(mapLines[0].length(), ' ');
+                std::cout << "    ";
+                if (i < uiLines.size()) std::cout << uiLines[i];
+                std::cout << "\n";
+            }
+
+            if (!effects.empty()) {
+                std::cout.flush();
+                Sleep(300);
+            }
+        }
+
+        std::cout << "\n";
+        for (const auto& line : ui.renderCommandLines(state)) std::cout << line << "\n";
+        std::cout << " [SAVE] p - Save to Slot " << (saveSlot + 1) << "   [MENU] b - back to menu\n";
+
+        // Draw character art below UI, right of map — using cursor positioning
+        {
+            int curIdx = state.getCurrentAllyIndex();
+            if (curIdx >= 0 && curIdx < 4) {
+                HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+
+                // artX = map column width + 4-space separator
+                int artX = (int)(mapLines.empty() ? 0 : mapLines[0].size()) + 4;
+                // artY = row just below uiLines (screen starts at row 0 after cls)
+                int artY = (int)uiLines.size();
+
+                int artCount = 0;
+                for (int i = 0; i < 25; i++)
+                    if (GameUI::charArt[curIdx][i]) artCount++;
+
+                for (int i = 0; i < artCount; i++) {
+                    const char* ln = GameUI::charArt[curIdx][i];
+                    if (!ln) continue;
+                    COORD pos = { (SHORT)artX, (SHORT)(artY + i) };
+                    SetConsoleCursorPosition(hOut, pos);
+                    DWORD written;
+                    WriteConsoleA(hOut, ln, (DWORD)strlen(ln), &written, NULL);
+                }
+            }
+        }
+
+        std::cout << "Command >> ";
+
+        std::string input;
+        std::getline(std::cin, input);
+
+        if (input == "b" || input == "B") {
+            if (confirmExit()) break;
+            continue;
+        }
+        if (input == "p" || input == "P") {
+            if (saveGame(state, saveSlot))
+                state.setLastMessage("Saved to Slot " + std::to_string(saveSlot + 1) + "!");
+            else
+                state.setLastMessage("Save failed!");
+            continue;
+        }
+
+        if (!processInput(input, state)) break;
+
+        if (state.getTowerHp() <= 0) {
+            showDefeatScreen();
+            if (g_defeatChoice == 1) {
+                break; // lobby
+            } else {
+                // restart
+                GameMap newMap(15, 15);
+                GameState newState(newMap);
+                gameLoop(newMap, newState, saveSlot);
+                break;
+            }
+        }
+    }
+}
+
+void runNewGame(int saveSlot) {
+    showPrologue();
+    GameMap   map(15, 15);
+    GameState state(map);
+    gameLoop(map, state, saveSlot);
+}
+
+void runLoadGame(int saveSlot) {
+    GameMap   map(15, 15);
+    GameState state(map);
+    if (!loadGame(state, saveSlot)) {
+        wcout_line(L"\ubd88\ub7ec\uc624\uae30 \uc2e4\ud328. \uc5d4\ud130\ub97c \ub204\ub974\uc138\uc694...");
+        std::string dummy; std::getline(std::cin, dummy);
+        return;
+    }
+    state.setLastMessage("Slot " + std::to_string(saveSlot + 1) + " loaded!");
+    gameLoop(map, state, saveSlot);
+}
