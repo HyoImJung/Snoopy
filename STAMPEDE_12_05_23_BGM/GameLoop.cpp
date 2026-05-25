@@ -777,14 +777,14 @@ static void gameLoop(GameMap& map, GameState& state, int saveSlot) {
 
         std::cout << "\n";
         for (const auto& line : ui.renderCommandLines(state)) std::cout << line << "\n";
-        std::cout << " [SAVE] p - Save to Slot " << (saveSlot + 1) << "   [MENU] b - back to menu\n";
+        std::cout << " [SAVE] p - Save to Slot " << (saveSlot + 1) << "   [MENU] M - back to menu\n";
 
         std::cout << "Command >> ";
 
         std::string input;
         std::getline(std::cin, input);
 
-        if (input == "b" || input == "B") {
+        if (input == "m" || input == "M") {
             if (confirmExit()) break;
             continue;
         }
