@@ -1,5 +1,4 @@
 <img width="1896" height="373" alt="Image" src="https://github.com/user-attachments/assets/14275304-8d66-4ffc-8241-44b8b3214e71" />
-(임시)
 
 # STAMPEDE
 콘솔 환경에서 구현한 턴제 전략 게임. 기사, 궁수, 사제, 마법사 4종의 아군 유닛으로 웨이브별로 몰려오는 몬스터들로부터 타워를 방어하는 것이 목표입니다
