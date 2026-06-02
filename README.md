@@ -127,7 +127,7 @@
 - **드래곤(보스)** — 역린(약점) 시스템(약점 타격 시 2배 피해), 상태 이상 면역, 메테오·지진·날갯짓·드래곤 브레스·공포 등 다양한 스킬 사용
 
 ## 파일 구조
-<img width="630" height="745" alt="Image" src="https://github.com/user-attachments/assets/4bcdfb74-2044-4e75-96b6-4212109c9701" />
+<img width="441" height="522" alt="Image" src="https://github.com/user-attachments/assets/4bcdfb74-2044-4e75-96b6-4212109c9701" />
 
 | 파일 | 설명 |
 |------|------|
