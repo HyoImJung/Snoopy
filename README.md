@@ -27,10 +27,12 @@
    git clone https://github.com/<your-repo>/STAMPEDE.git
    ```
 2. Visual Studio 2022로 솔루션 파일(`.sln`)을 엽니다.
-3. 상단에서 빌드 구성을 선택한 뒤(`Release` 또는 `Debug`, `x64` 권장) **빌드 → 솔루션 다시 빌드**를 실행합니다.
-4. **디버그하지 않고 시작(Ctrl + F5)** 으로 게임을 실행합니다.
+3. 상단 메뉴 **빌드 → 일괄 빌드(Batch Build)** 를 엽니다.
+4. 목록에서 **Release 구성**(`Release`, `x64` 권장)에 체크한 뒤 **빌드** 버튼을 눌러 빌드합니다.
+5. 빌드가 완료되면 생성된 출력 폴더의 **`Release`(또는 `x64/Release`) 폴더로 이동**합니다.
+6. 폴더 안의 **`.exe` 파일을 더블클릭**하여 게임을 실행합니다.
 
-> **사운드 파일 배치**: BGM·효과음(`.wav`)은 실행 파일(`.exe`)과 **같은 폴더**에 있어야 재생됩니다. (예: `x64/Release/` 폴더에 `Prologue.wav`, `Wave_1.wav` ~ `Wave_4.wav`, `Game_victory.wav`, `Game_over.wav`, `Submit.wav` 등 복사)
+> **사운드 파일 배치**: BGM·효과음(`.wav`)은 `.exe`와 **같은 폴더(`Release` 폴더)** 에 있어야 재생됩니다. (예: `Prologue.wav`, `Wave_1.wav` ~ `Wave_4.wav`, `Game_victory.wav`, `Game_over.wav`, `Submit.wav` 등을 `Release` 폴더에 복사)
 
 > **한글 표시**: 한글 출력을 위해 **Windows Terminal** 사용을 권장합니다. 일반 콘솔(conhost)에서 한글이 깨질 경우 콘솔 속성에서 글꼴을 **굴림체**로 변경하면 정상 출력됩니다.
 
@@ -133,7 +135,7 @@
 | `GameLoop.cpp/.h` | 프롤로그·튜토리얼·메인 루프, 렌더링, 입력 처리 |
 | `GameState.cpp/.h` | 게임 상태(턴·AP·웨이브), 이동/공격/스킬 처리 |
 | `GameMap.cpp/.h` | 맵 생성·지형·렌더링 |
-| `GameUI.cpp(UI.cpp)/.h` | 우측 정보 패널·명령어 패널 렌더링 |
+| `UI.cpp (GameUI.h)` | 우측 정보 패널·명령어 패널 렌더링 |
 | `Character.h` | 모든 유닛의 공통 베이스 클래스 |
 | `Knight / Archer / Priest / Mage .cpp/.h` | 아군 유닛 및 스킬 구현 |
 | `Enemy.cpp/.h` | 일반 몬스터 및 적 AI |
