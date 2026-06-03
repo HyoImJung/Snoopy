@@ -144,7 +144,7 @@
 > 획득한 버프는 세이브/로드 후에도 유지됩니다.
 
 ## 파일 구조
-<img width="441" height="522" alt="Image" src="https://github.com/user-attachments/assets/4bcdfb74-2044-4e75-96b6-4212109c9701" />
+<img width="466" height="606" alt="Image" src="https://github.com/user-attachments/assets/b68caa10-f68d-4bfe-9d18-6895ec74cb5a" />
 
 | 파일 | 설명 |
 |------|------|
