@@ -150,18 +150,21 @@
 |------|------|
 | `main.cpp` | 프로그램 진입점, 콘솔(UTF-8) 초기화 |
 | `GameLoop.cpp/.h` | 프롤로그·튜토리얼·메인 루프, 렌더링, 입력 처리 |
-| `GameState.cpp/.h` | 게임 상태(턴·AP·웨이브), 이동/공격/스킬 처리 |
-| `GameMap.cpp/.h` | 맵 생성·지형·렌더링 |
-| `UI.cpp (GameUI.h)` | 우측 정보 패널·명령어 패널 렌더링 |
+| `GameState.cpp/.h` | 게임 상태(턴·AP·웨이브·보물상자), 이동/공격/스킬 처리 |
+| `GameMap.h`, `Map.cpp` | 맵 생성·지형·렌더링 |
+| `GameUI.h`, `UI.cpp` | 우측 정보 패널·명령어 패널 렌더링 |
 | `Character.h` | 모든 유닛의 공통 베이스 클래스 |
 | `Knight / Archer / Priest / Mage .cpp/.h` | 아군 유닛 및 스킬 구현 |
 | `Enemy.cpp/.h` | 일반 몬스터 및 적 AI |
 | `Elite.cpp/.h` | 엘리트 몬스터(리치왕·악마왕) |
 | `Boss.cpp/.h` | 최종 보스(드래곤) |
 | `Skill.h` | 스킬 베이스 클래스 |
+| `Colors.h` | 색상 상수 정의 |
 | `Sound.cpp/.h` | BGM·효과음 재생 |
-| `SaveLoad.cpp/.h` | 세이브/로드 |
+| `SaveLoad.cpp/.h` | 세이브/로드 (유닛 스탯·보물상자·지형 포함) |
 | `startmenu.cpp / savemenu.cpp` | 시작·저장 메뉴 |
+| `Menu.h` | 메뉴 함수 선언 |
+| `PrologueImages.h` | 프롤로그 ASCII 아트 데이터 |
 
 ## 주요 기능
 맵은 15 × 15 격자로 구성되며, 생성 시 타워(기지)를 배치하고 산·강 등의 지형을 초기화합니다.
